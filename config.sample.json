@@ -1,0 +1,10 @@
+{
+  "db": {
+    "host": "",
+    "user": "",
+    "password": "",
+    "database": ""
+  },
+
+  "base_url": "http://localhost:3000"
+}
