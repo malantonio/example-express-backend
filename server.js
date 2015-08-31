@@ -14,15 +14,15 @@ var dbConfig = config.db
 var connection = mysql.createConnection(dbConfig)
 connection.connect()
 
-app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({extended: false}))
+app.use(express.static(__dirname + '/static'))
 
-// welcome page
-app.get('/', function (req, res) {
-  res.send('home page!')
-})
+//
+// our backend api routes
+//
 
 // get all urls
-app.get('/urls', function (req, res) {
+app.get('/api/urls', function (req, res) {
   var query = 'SELECT * from urls LIMIT 25'
 
   connection.query(query, function (err, results) {
@@ -33,8 +33,10 @@ app.get('/urls', function (req, res) {
 })
 
 // get url by id/short_code
-app.get('/urls/:id', function (req, res) {
+app.get('/api/urls/:id', function (req, res) {
   var id = req.params.id
+
+  if (!id) return
 
   // if :id is a base10 number, we're using the id field, otherwise
   // we're using the short_url field
@@ -57,36 +59,21 @@ app.get('/urls/:id', function (req, res) {
   })
 })
 
-// frontend usage of `/urls/:id`, if short_code exists,
-// redirects to the full_url
-//
-// (be sure to position this after all of the GET requests,
-// otherwise it'll match those urls as well)
-app.get('/:url', function (req, res) {
-  var url = req.params.url
-  var query = 'SELECT full_url FROM urls WHERE short_code = ?'
-
-  connection.query(query, [url], function (err, results) {
-    if (results.length !== 1) { /* handle duplicates or no results */ }
-
-    res.redirect(results[0].full_url)
-  })
-})
-
 // add a url and generate a short-code for it
-app.post('/urls', function (req, res) {
-  var body = req.body
-  var fullUrl = body.full_url
-  var shortCode = generateShortUrl()
+app.post('/api/urls', function (req, res) {
+  var full_url = req.body.full_url
+  var short_code = generateShortUrl()
   var data = {
-    full_url: fullUrl,
-    short_code: shortCode
+    full_url: full_url,
+    short_code: short_code
   }
+
+  console.log(data)
 
   connection.query('INSERT INTO `urls` SET ?', data, function (err, results) {
     if (err) console.log(err)
 
-    res.send({id: results.insertId, shortUrl: config.base_url + '/' + shortCode})
+    res.send({id: results.insertId, short_url: config.base_url + '/' + short_code})
   })
 })
 
@@ -100,7 +87,7 @@ app.post('/urls', function (req, res) {
 // })
 
 // remove a url (follows a path similar to GET /urls/:id)
-app.delete('/urls/:id', function (req, res) {
+app.delete('/api/urls/:id', function (req, res) {
   var query = 'DELETE from urls where ?? = ?'
   var id = req.params.id
   var parsed = parseInt(id, 10)
@@ -110,6 +97,22 @@ app.delete('/urls/:id', function (req, res) {
     if (err) res.send(err)
 
     res.send({'message': field + ':' + id + ' was successfully deleted'})
+  })
+})
+
+// frontend usage of `/urls/:id`, if short_code exists,
+// redirects to the full_url
+//
+// (be sure to position this after all of the GET requests,
+// otherwise it'll match those urls as well)
+app.get('/:url', function (req, res) {
+  var url = req.params.url
+  var query = 'SELECT full_url FROM urls WHERE short_code = ?'
+
+  connection.query(query, [url], function (err, results) {
+    if (results.length !== 1) { /* handle duplicates or no results */ }
+
+    return res.redirect(results[0].full_url)
   })
 })
 
